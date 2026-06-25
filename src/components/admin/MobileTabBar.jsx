@@ -8,7 +8,7 @@ const TABS = [
 
 export default function MobileTabBar({ activeTab, onTabChange, menuCount }) {
   return (
-    <nav className="sticky top-[57px] z-30 border-b border-stone-200 bg-white md:hidden">
+    <nav className="sticky top-[5.25rem] z-30 border-b border-stone-200 bg-white md:hidden">
       <div className="flex">
         {TABS.map((tab) => (
           <button

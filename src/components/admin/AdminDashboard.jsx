@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { DragDropContext } from '@hello-pangea/dnd'
-import { Eye, LogOut, Send, UtensilsCrossed } from 'lucide-react'
+import { Eye, LogOut, Send } from 'lucide-react'
 import { formatDateId, formatDisplayDate, parseDateId } from '../../utils/date'
 import {
   fetchDailyMenu,
@@ -16,6 +16,7 @@ import { useNotification } from '../../context/NotificationContext'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { t } from '../../i18n/zh'
 import LoadingSpinner from '../common/LoadingSpinner'
+import AppHeader from '../common/AppHeader'
 import ItemPoolForm from './ItemPoolForm'
 import ItemPool from './ItemPool'
 import ItemPoolEditSheet from './ItemPoolEditSheet'
@@ -403,38 +404,24 @@ export default function AdminDashboard({ onPreviewPublic }) {
 
   return (
     <div className="min-h-screen bg-stone-50">
-      <header className="sticky top-0 z-40 border-b border-stone-200 bg-white shadow-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-100 text-brand-600">
-              <UtensilsCrossed className="h-4 w-4" />
-            </div>
-            <div>
-              <h1 className="text-sm font-bold text-stone-900">{t.adminDashboard}</h1>
-              <p className="text-xs text-stone-400">{t.menuManager}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onPreviewPublic}
-              className="flex items-center gap-1.5 rounded-lg border border-stone-200 px-3 py-1.5 text-sm text-stone-600 transition hover:bg-stone-50"
-            >
-              <Eye className="h-4 w-4" />
-              <span className="hidden sm:inline">{t.previewPublic}</span>
-            </button>
-            <button
-              type="button"
-              onClick={logout}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-stone-500 transition hover:bg-red-50 hover:text-red-600"
-            >
-              <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">{t.logout}</span>
-            </button>
-          </div>
-        </div>
-      </header>
+      <AppHeader sticky maxWidth="7xl" subtitle={t.adminDashboard}>
+        <button
+          type="button"
+          onClick={onPreviewPublic}
+          className="flex items-center gap-1.5 rounded-lg border border-stone-200 px-3 py-1.5 text-sm text-stone-600 transition hover:bg-stone-50"
+        >
+          <Eye className="h-4 w-4" />
+          <span className="hidden sm:inline">{t.previewPublic}</span>
+        </button>
+        <button
+          type="button"
+          onClick={logout}
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-stone-500 transition hover:bg-red-50 hover:text-red-600"
+        >
+          <LogOut className="h-4 w-4" />
+          <span className="hidden sm:inline">{t.logout}</span>
+        </button>
+      </AppHeader>
 
       {mainContent}
 
