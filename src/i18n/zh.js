@@ -39,7 +39,17 @@ export const t = {
   adding: '添加中...',
   addItemFailed: '添加失败，请重试。',
   dragToMenu: '拖拽菜品至今日菜单 →',
+  tapToAddHint: '点击 + 将菜品加入今日菜单',
+  addToMenu: '加入菜单',
   noItemsInPool: '菜品库为空，请在上方添加。',
+
+  // Mobile tabs
+  tabManagePool: '🍲 管理菜品库',
+  tabTodaysMenu: '📋 今日菜单',
+  tabArchive: '📁 历史菜单',
+  stagedForToday: (n) => `今日菜单已选 ${n} 项`,
+  viewAndPublish: '查看并发布',
+  tapToAddFromPool: '请从菜品库点击 + 添加菜品',
 
   // Menu builder
   todaysMenuWorkspace: '今日菜单',
