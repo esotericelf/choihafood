@@ -12,6 +12,7 @@ import {
   deleteItemFromPool,
 } from '../../services/firestore'
 import { useAuth } from '../../context/AuthContext'
+import { useNotification } from '../../context/NotificationContext'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { t } from '../../i18n/zh'
 import LoadingSpinner from '../common/LoadingSpinner'
@@ -44,6 +45,7 @@ function PublishBanner({ message, success }) {
 
 export default function AdminDashboard({ onPreviewPublic }) {
   const { logout } = useAuth()
+  const { showToast, showSuccessOverlay } = useNotification()
   const todayDateId = formatDateId()
   const isMobile = useMediaQuery('(max-width: 767px)')
 
@@ -146,6 +148,7 @@ export default function AdminDashboard({ onPreviewPublic }) {
       return updated
     })
     setPublished(false)
+    showToast(t.addedToMenu(item.name))
   }
 
   function onDragEnd(result) {
@@ -207,9 +210,11 @@ export default function AdminDashboard({ onPreviewPublic }) {
         setPublished(false)
       }
       setSelectedArchive(null)
-      setPublishSuccess(true)
-      setPublishMessage(t.deleteMenuSuccess)
-      setTimeout(() => setPublishMessage(''), 3000)
+      showSuccessOverlay(t.menuDeletedOverlay, {
+        onComplete: () => {
+          if (isMobile) setMobileTab('archive')
+        },
+      })
     } catch (err) {
       console.error(err)
       setPublishSuccess(false)
@@ -233,14 +238,18 @@ export default function AdminDashboard({ onPreviewPublic }) {
       }))
       await publishDailyMenu(workspaceDateId, itemsToSave)
       setPublished(true)
-      setPublishSuccess(true)
-      setPublishMessage(t.publishSuccess)
-      setTimeout(() => setPublishMessage(''), 3000)
 
       const [year, month] = workspaceDateId.split('-').map(Number)
       if (year === archiveYear && month === archiveMonth) {
         await refreshArchive()
       }
+
+      showSuccessOverlay(t.menuPublishedOverlay, {
+        onComplete: () => {
+          setPublishMessage('')
+          if (isMobile) setMobileTab('archive')
+        },
+      })
     } catch (err) {
       console.error(err)
       setPublishSuccess(false)
@@ -280,6 +289,7 @@ export default function AdminDashboard({ onPreviewPublic }) {
     )
     syncMenuItemsAfterPoolUpdate(id, { name: name.trim(), price: numericPrice })
     setEditingPoolItem(null)
+    showToast(t.itemUpdatedSuccess(name.trim()))
   }
 
   async function handleDeletePoolItem(item) {
@@ -337,7 +347,7 @@ export default function AdminDashboard({ onPreviewPublic }) {
           {publishing ? t.publishing : t.publishMenu}
         </button>
       </div>
-      <PublishBanner message={publishMessage} success={publishSuccess} />
+      <PublishBanner message={publishSuccess ? '' : publishMessage} success={publishSuccess} />
       <MenuBuilder {...menuBuilderProps} />
     </section>
   )

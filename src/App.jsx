@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { NotificationProvider } from './context/NotificationContext'
 import PublicView from './components/public/PublicView'
 import AdminDashboard from './components/admin/AdminDashboard'
 import LoginModal from './components/auth/LoginModal'
@@ -48,7 +49,9 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <NotificationProvider>
+        <AppContent />
+      </NotificationProvider>
     </AuthProvider>
   )
 }

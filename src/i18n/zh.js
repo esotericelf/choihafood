@@ -84,6 +84,12 @@ export const t = {
   deleteMenuFailed: '删除失败，请重试。',
   loadToWorkspaceSuccess: '已载入工作区，可进行编辑后重新发布。',
 
+  // Notifications
+  addedToMenu: (name) => `✓ 已加入今日菜单：${name}`,
+  itemUpdatedSuccess: (name) => `✓ 已更新：${name}`,
+  menuPublishedOverlay: '🎉 今日菜单发布成功！',
+  menuDeletedOverlay: '菜单已成功删除！',
+
   // Archive
   dateArchive: '历史菜单',
   year: '年份',
