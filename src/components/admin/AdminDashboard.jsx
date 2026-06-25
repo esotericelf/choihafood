@@ -1,0 +1,240 @@
+import { useCallback, useEffect, useState } from 'react'
+import { DragDropContext } from '@hello-pangea/dnd'
+import { Eye, LogOut, Send, UtensilsCrossed } from 'lucide-react'
+import { formatDateId } from '../../utils/date'
+import {
+  fetchDailyMenu,
+  fetchItemPool,
+  fetchMenusByMonth,
+  publishDailyMenu,
+} from '../../services/firestore'
+import { useAuth } from '../../context/AuthContext'
+import { t } from '../../i18n/zh'
+import LoadingSpinner from '../common/LoadingSpinner'
+import ItemPoolForm from './ItemPoolForm'
+import ItemPool from './ItemPool'
+import MenuBuilder from './MenuBuilder'
+import DateArchive from './DateArchive'
+import ArchiveModal from './ArchiveModal'
+
+export default function AdminDashboard({ onPreviewPublic }) {
+  const { logout } = useAuth()
+  const dateId = formatDateId()
+
+  const [itemPool, setItemPool] = useState([])
+  const [menuItems, setMenuItems] = useState([])
+  const [published, setPublished] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [publishing, setPublishing] = useState(false)
+  const [publishMessage, setPublishMessage] = useState('')
+  const [publishSuccess, setPublishSuccess] = useState(false)
+
+  const [archiveYear, setArchiveYear] = useState(new Date().getFullYear())
+  const [archiveMonth, setArchiveMonth] = useState(new Date().getMonth() + 1)
+  const [archiveMenus, setArchiveMenus] = useState([])
+  const [archiveLoading, setArchiveLoading] = useState(false)
+  const [selectedArchive, setSelectedArchive] = useState(null)
+
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [pool, todayMenu] = await Promise.all([
+        fetchItemPool(),
+        fetchDailyMenu(dateId),
+      ])
+      setItemPool(pool)
+      if (todayMenu?.items) {
+        setMenuItems(
+          todayMenu.items.map((item) => ({
+            ...item,
+            menuKey: item.menuKey || crypto.randomUUID(),
+          }))
+        )
+        setPublished(!!todayMenu.published)
+      }
+    } catch (err) {
+      console.error('Failed to load admin data:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [dateId])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadArchive() {
+      setArchiveLoading(true)
+      try {
+        const menus = await fetchMenusByMonth(archiveYear, archiveMonth)
+        if (!cancelled) setArchiveMenus(menus)
+      } catch (err) {
+        console.error('Failed to load archive:', err)
+      } finally {
+        if (!cancelled) setArchiveLoading(false)
+      }
+    }
+    loadArchive()
+    return () => { cancelled = true }
+  }, [archiveYear, archiveMonth])
+
+  function onDragEnd(result) {
+    const { source, destination, draggableId } = result
+    if (!destination) return
+
+    if (source.droppableId === 'item-pool' && destination.droppableId === 'today-menu') {
+      const item = itemPool.find((i) => i.id === draggableId)
+      if (!item) return
+      const newItem = {
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        menuKey: crypto.randomUUID(),
+      }
+      const updated = [...menuItems]
+      updated.splice(destination.index, 0, newItem)
+      setMenuItems(updated)
+      setPublished(false)
+      return
+    }
+
+    if (source.droppableId === 'today-menu' && destination.droppableId === 'today-menu') {
+      const updated = [...menuItems]
+      const [removed] = updated.splice(source.index, 1)
+      updated.splice(destination.index, 0, removed)
+      setMenuItems(updated)
+      setPublished(false)
+    }
+  }
+
+  function handleRemove(index) {
+    setMenuItems((prev) => prev.filter((_, i) => i !== index))
+    setPublished(false)
+  }
+
+  async function handlePublish() {
+    if (menuItems.length === 0) return
+    setPublishing(true)
+    setPublishMessage('')
+    setPublishSuccess(false)
+    try {
+      const itemsToSave = menuItems.map(({ id, name, price, menuKey }) => ({
+        id,
+        name,
+        price,
+        menuKey,
+      }))
+      await publishDailyMenu(dateId, itemsToSave)
+      setPublished(true)
+      setPublishSuccess(true)
+      setPublishMessage(t.publishSuccess)
+      setTimeout(() => setPublishMessage(''), 3000)
+    } catch (err) {
+      console.error(err)
+      setPublishSuccess(false)
+      setPublishMessage(t.publishFailed)
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  if (loading) {
+    return <LoadingSpinner message={t.loadingDashboard} />
+  }
+
+  return (
+    <div className="min-h-screen bg-stone-50">
+      <header className="sticky top-0 z-40 border-b border-stone-200 bg-white shadow-sm">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-100 text-brand-600">
+              <UtensilsCrossed className="h-4 w-4" />
+            </div>
+            <div>
+              <h1 className="text-sm font-bold text-stone-900">{t.adminDashboard}</h1>
+              <p className="text-xs text-stone-400">{t.menuManager}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onPreviewPublic}
+              className="flex items-center gap-1.5 rounded-lg border border-stone-200 px-3 py-1.5 text-sm text-stone-600 transition hover:bg-stone-50"
+            >
+              <Eye className="h-4 w-4" />
+              <span className="hidden sm:inline">{t.previewPublic}</span>
+            </button>
+            <button
+              type="button"
+              onClick={logout}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-stone-500 transition hover:bg-red-50 hover:text-red-600"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">{t.logout}</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-7xl px-4 py-6">
+        <DragDropContext onDragEnd={onDragEnd}>
+          <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
+            <div className="grid gap-6 md:grid-cols-2">
+              <section className="space-y-4">
+                <h2 className="text-base font-semibold text-stone-800">{t.itemPool}</h2>
+                <ItemPoolForm onItemAdded={(item) => setItemPool((prev) => [...prev, item].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN')))} />
+                <ItemPool items={itemPool} />
+              </section>
+
+              <section className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-base font-semibold text-stone-800">{t.menuBuilder}</h2>
+                  <button
+                    type="button"
+                    onClick={handlePublish}
+                    disabled={publishing || menuItems.length === 0}
+                    className="flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Send className="h-4 w-4" />
+                    {publishing ? t.publishing : t.publishMenu}
+                  </button>
+                </div>
+
+                {publishMessage && (
+                  <p className={`rounded-lg px-3 py-2 text-sm ${
+                    publishSuccess
+                      ? 'bg-green-50 text-green-700'
+                      : 'bg-red-50 text-red-600'
+                  }`}>
+                    {publishMessage}
+                  </p>
+                )}
+
+                <MenuBuilder
+                  items={menuItems}
+                  onRemove={handleRemove}
+                  published={published}
+                />
+              </section>
+            </div>
+
+            <DateArchive
+              year={archiveYear}
+              month={archiveMonth}
+              onYearChange={setArchiveYear}
+              onMonthChange={setArchiveMonth}
+              menus={archiveMenus}
+              loading={archiveLoading}
+              onSelectMenu={setSelectedArchive}
+            />
+          </div>
+        </DragDropContext>
+      </main>
+
+      <ArchiveModal menu={selectedArchive} onClose={() => setSelectedArchive(null)} />
+    </div>
+  )
+}
