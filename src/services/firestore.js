@@ -5,12 +5,14 @@ import {
   getDocs,
   getDoc,
   setDoc,
+  deleteDoc,
   query,
   where,
   orderBy,
   Timestamp,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { parseDateId } from '../utils/date'
 
 const ITEM_POOL = 'item_pool'
 const DAILY_MENUS = 'daily_menus'
@@ -50,10 +52,15 @@ export async function publishDailyMenu(dateId, items) {
   const docRef = doc(db, DAILY_MENUS, dateId)
   await setDoc(docRef, {
     id: dateId,
-    date: Timestamp.fromDate(new Date()),
+    date: Timestamp.fromDate(parseDateId(dateId)),
     items,
     published: true,
   })
+}
+
+export async function deleteDailyMenu(dateId) {
+  const docRef = doc(db, DAILY_MENUS, dateId)
+  await deleteDoc(docRef)
 }
 
 export async function fetchMenusByMonth(year, month) {

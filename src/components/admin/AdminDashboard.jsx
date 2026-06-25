@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { DragDropContext } from '@hello-pangea/dnd'
 import { Eye, LogOut, Send, UtensilsCrossed } from 'lucide-react'
-import { formatDateId } from '../../utils/date'
+import { formatDateId, formatDisplayDate, parseDateId } from '../../utils/date'
 import {
   fetchDailyMenu,
   fetchItemPool,
   fetchMenusByMonth,
   publishDailyMenu,
+  deleteDailyMenu,
 } from '../../services/firestore'
 import { useAuth } from '../../context/AuthContext'
 import { t } from '../../i18n/zh'
@@ -17,15 +18,24 @@ import MenuBuilder from './MenuBuilder'
 import DateArchive from './DateArchive'
 import ArchiveModal from './ArchiveModal'
 
+function mapMenuItems(items) {
+  return (items || []).map((item) => ({
+    ...item,
+    menuKey: item.menuKey || crypto.randomUUID(),
+  }))
+}
+
 export default function AdminDashboard({ onPreviewPublic }) {
   const { logout } = useAuth()
-  const dateId = formatDateId()
+  const todayDateId = formatDateId()
 
   const [itemPool, setItemPool] = useState([])
   const [menuItems, setMenuItems] = useState([])
+  const [workspaceDateId, setWorkspaceDateId] = useState(todayDateId)
   const [published, setPublished] = useState(false)
   const [loading, setLoading] = useState(true)
   const [publishing, setPublishing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [publishMessage, setPublishMessage] = useState('')
   const [publishSuccess, setPublishSuccess] = useState(false)
 
@@ -35,29 +45,49 @@ export default function AdminDashboard({ onPreviewPublic }) {
   const [archiveLoading, setArchiveLoading] = useState(false)
   const [selectedArchive, setSelectedArchive] = useState(null)
 
+  const refreshArchive = useCallback(async () => {
+    try {
+      const menus = await fetchMenusByMonth(archiveYear, archiveMonth)
+      setArchiveMenus(menus)
+    } catch (err) {
+      console.error('Failed to load archive:', err)
+    }
+  }, [archiveYear, archiveMonth])
+
+  const loadTodayWorkspace = useCallback(async () => {
+    const todayMenu = await fetchDailyMenu(todayDateId)
+    setWorkspaceDateId(todayDateId)
+    if (todayMenu?.items) {
+      setMenuItems(mapMenuItems(todayMenu.items))
+      setPublished(!!todayMenu.published)
+    } else {
+      setMenuItems([])
+      setPublished(false)
+    }
+  }, [todayDateId])
+
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
       const [pool, todayMenu] = await Promise.all([
         fetchItemPool(),
-        fetchDailyMenu(dateId),
+        fetchDailyMenu(todayDateId),
       ])
       setItemPool(pool)
+      setWorkspaceDateId(todayDateId)
       if (todayMenu?.items) {
-        setMenuItems(
-          todayMenu.items.map((item) => ({
-            ...item,
-            menuKey: item.menuKey || crypto.randomUUID(),
-          }))
-        )
+        setMenuItems(mapMenuItems(todayMenu.items))
         setPublished(!!todayMenu.published)
+      } else {
+        setMenuItems([])
+        setPublished(false)
       }
     } catch (err) {
       console.error('Failed to load admin data:', err)
     } finally {
       setLoading(false)
     }
-  }, [dateId])
+  }, [todayDateId])
 
   useEffect(() => {
     loadData()
@@ -114,6 +144,51 @@ export default function AdminDashboard({ onPreviewPublic }) {
     setPublished(false)
   }
 
+  function handleClearAll() {
+    setMenuItems([])
+    setPublished(false)
+  }
+
+  async function handleBackToToday() {
+    await loadTodayWorkspace()
+    setPublishMessage('')
+  }
+
+  function handleLoadToWorkspace(menu) {
+    setWorkspaceDateId(menu.id)
+    setMenuItems(mapMenuItems(menu.items))
+    setPublished(!!menu.published)
+    setSelectedArchive(null)
+    setPublishMessage(t.loadToWorkspaceSuccess)
+    setPublishSuccess(true)
+    setTimeout(() => setPublishMessage(''), 3000)
+  }
+
+  async function handleDeleteMenu(menu) {
+    if (!window.confirm(t.confirmDeleteMenu(formatDisplayDate(parseDateId(menu.id))))) return
+
+    setDeleting(true)
+    setPublishMessage('')
+    try {
+      await deleteDailyMenu(menu.id)
+      setArchiveMenus((prev) => prev.filter((m) => m.id !== menu.id))
+      if (workspaceDateId === menu.id) {
+        setMenuItems([])
+        setPublished(false)
+      }
+      setSelectedArchive(null)
+      setPublishSuccess(true)
+      setPublishMessage(t.deleteMenuSuccess)
+      setTimeout(() => setPublishMessage(''), 3000)
+    } catch (err) {
+      console.error(err)
+      setPublishSuccess(false)
+      setPublishMessage(t.deleteMenuFailed)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   async function handlePublish() {
     if (menuItems.length === 0) return
     setPublishing(true)
@@ -126,11 +201,16 @@ export default function AdminDashboard({ onPreviewPublic }) {
         price,
         menuKey,
       }))
-      await publishDailyMenu(dateId, itemsToSave)
+      await publishDailyMenu(workspaceDateId, itemsToSave)
       setPublished(true)
       setPublishSuccess(true)
       setPublishMessage(t.publishSuccess)
       setTimeout(() => setPublishMessage(''), 3000)
+
+      const [year, month] = workspaceDateId.split('-').map(Number)
+      if (year === archiveYear && month === archiveMonth) {
+        await refreshArchive()
+      }
     } catch (err) {
       console.error(err)
       setPublishSuccess(false)
@@ -215,7 +295,11 @@ export default function AdminDashboard({ onPreviewPublic }) {
 
                 <MenuBuilder
                   items={menuItems}
+                  activeDateId={workspaceDateId}
+                  todayDateId={todayDateId}
                   onRemove={handleRemove}
+                  onClearAll={handleClearAll}
+                  onBackToToday={handleBackToToday}
                   published={published}
                 />
               </section>
@@ -234,7 +318,13 @@ export default function AdminDashboard({ onPreviewPublic }) {
         </DragDropContext>
       </main>
 
-      <ArchiveModal menu={selectedArchive} onClose={() => setSelectedArchive(null)} />
+      <ArchiveModal
+        menu={selectedArchive}
+        onClose={() => setSelectedArchive(null)}
+        onLoadToWorkspace={handleLoadToWorkspace}
+        onDeleteMenu={handleDeleteMenu}
+        deleting={deleting}
+      />
     </div>
   )
 }

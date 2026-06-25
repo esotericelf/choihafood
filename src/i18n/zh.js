@@ -1,4 +1,4 @@
-export const BRAND_NAME = '彩霞'
+export const BRAND_NAME = '彩霞美食'
 
 export const t = {
   // Public
@@ -51,6 +51,17 @@ export const t = {
   publishFailed: '发布失败，请重试。',
   removeItem: '移除',
   menuBuilder: '菜单编辑',
+  clearAll: '清空全部',
+  editingMenuFor: '正在编辑',
+  backToToday: '返回今日',
+
+  // Archive actions
+  loadToWorkspace: '载入工作区编辑',
+  deleteMenu: '删除菜单',
+  confirmDeleteMenu: (date) => `确定要删除 ${date} 的菜单吗？此操作无法撤销。`,
+  deleteMenuSuccess: '菜单已删除。',
+  deleteMenuFailed: '删除失败，请重试。',
+  loadToWorkspaceSuccess: '已载入工作区，可进行编辑后重新发布。',
 
   // Archive
   dateArchive: '历史菜单',

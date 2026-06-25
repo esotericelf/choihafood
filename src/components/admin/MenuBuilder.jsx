@@ -1,21 +1,56 @@
 import { Draggable, Droppable } from '@hello-pangea/dnd'
-import { GripVertical, X } from 'lucide-react'
-import { formatDisplayDate } from '../../utils/date'
+import { GripVertical, Trash2, RotateCcw } from 'lucide-react'
+import { formatDisplayDate, parseDateId } from '../../utils/date'
 import { formatPrice, t } from '../../i18n/zh'
 
-export default function MenuBuilder({ items, onRemove, published }) {
+export default function MenuBuilder({
+  items,
+  activeDateId,
+  todayDateId,
+  onRemove,
+  onClearAll,
+  onBackToToday,
+  published,
+}) {
+  const displayDate = formatDisplayDate(parseDateId(activeDateId))
+  const isEditingPast = activeDateId !== todayDateId
+
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex items-start justify-between gap-2">
         <div>
           <h3 className="font-semibold text-stone-800">{t.todaysMenuWorkspace}</h3>
-          <p className="text-xs text-stone-400">{formatDisplayDate()}</p>
+          <p className="text-xs text-stone-400">{displayDate}</p>
+          {isEditingPast && (
+            <p className="mt-1 text-xs font-medium text-amber-600">{t.editingMenuFor} {displayDate}</p>
+          )}
         </div>
-        {published && (
-          <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-            {t.published}
-          </span>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {published && (
+            <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+              {t.published}
+            </span>
+          )}
+          {isEditingPast && (
+            <button
+              type="button"
+              onClick={onBackToToday}
+              className="rounded-lg border border-stone-200 px-2.5 py-1 text-xs text-stone-600 hover:bg-stone-50"
+            >
+              {t.backToToday}
+            </button>
+          )}
+          {items.length > 0 && (
+            <button
+              type="button"
+              onClick={onClearAll}
+              className="flex items-center gap-1 rounded-lg border border-stone-200 px-2.5 py-1 text-xs text-stone-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              {t.clearAll}
+            </button>
+          )}
+        </div>
       </div>
 
       <Droppable droppableId="today-menu">
@@ -63,7 +98,7 @@ export default function MenuBuilder({ items, onRemove, published }) {
                         className="rounded p-1 text-stone-400 hover:bg-red-50 hover:text-red-500"
                         aria-label={`${t.removeItem} ${item.name}`}
                       >
-                        <X className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   )}
