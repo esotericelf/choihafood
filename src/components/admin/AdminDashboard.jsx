@@ -8,6 +8,8 @@ import {
   fetchMenusByMonth,
   publishDailyMenu,
   deleteDailyMenu,
+  updateItemInPool,
+  deleteItemFromPool,
 } from '../../services/firestore'
 import { useAuth } from '../../context/AuthContext'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
@@ -15,6 +17,7 @@ import { t } from '../../i18n/zh'
 import LoadingSpinner from '../common/LoadingSpinner'
 import ItemPoolForm from './ItemPoolForm'
 import ItemPool from './ItemPool'
+import ItemPoolEditSheet from './ItemPoolEditSheet'
 import MenuBuilder from './MenuBuilder'
 import DateArchive from './DateArchive'
 import ArchiveModal from './ArchiveModal'
@@ -60,6 +63,7 @@ export default function AdminDashboard({ onPreviewPublic }) {
   const [archiveMenus, setArchiveMenus] = useState([])
   const [archiveLoading, setArchiveLoading] = useState(false)
   const [selectedArchive, setSelectedArchive] = useState(null)
+  const [editingPoolItem, setEditingPoolItem] = useState(null)
 
   const showStagingBar = isMobile && mobileTab === 'pool' && menuItems.length > 0
 
@@ -250,6 +254,49 @@ export default function AdminDashboard({ onPreviewPublic }) {
     setItemPool((prev) => [...prev, item].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN')))
   }
 
+  function syncMenuItemsAfterPoolUpdate(itemId, updates) {
+    setMenuItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId ? { ...item, ...updates } : item
+      )
+    )
+    setPublished(false)
+  }
+
+  function removeFromMenuByPoolId(itemId) {
+    setMenuItems((prev) => prev.filter((item) => item.id !== itemId))
+    setPublished(false)
+  }
+
+  async function handleUpdatePoolItem(id, { name, price }) {
+    await updateItemInPool(id, { name, price })
+    const numericPrice = Number(price)
+    setItemPool((prev) =>
+      prev
+        .map((item) =>
+          item.id === id ? { ...item, name: name.trim(), price: numericPrice } : item
+        )
+        .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+    )
+    syncMenuItemsAfterPoolUpdate(id, { name: name.trim(), price: numericPrice })
+    setEditingPoolItem(null)
+  }
+
+  async function handleDeletePoolItem(item) {
+    await deleteItemFromPool(item.id)
+    setItemPool((prev) => prev.filter((i) => i.id !== item.id))
+    removeFromMenuByPoolId(item.id)
+    setEditingPoolItem(null)
+  }
+
+  function handleQuickDeletePoolItem(item) {
+    if (!window.confirm(t.confirmDeleteFromPool)) return
+    handleDeletePoolItem(item).catch((err) => {
+      console.error(err)
+      window.alert(t.deleteItemFailed)
+    })
+  }
+
   const menuBuilderProps = {
     items: menuItems,
     activeDateId: workspaceDateId,
@@ -268,7 +315,10 @@ export default function AdminDashboard({ onPreviewPublic }) {
       <ItemPool
         items={itemPool}
         dragEnabled={!isMobile}
+        isMobile={isMobile}
         onAddToMenu={handleAddToMenu}
+        onEditItem={setEditingPoolItem}
+        onDeleteItem={handleQuickDeletePoolItem}
       />
     </section>
   )
@@ -384,6 +434,13 @@ export default function AdminDashboard({ onPreviewPublic }) {
         onLoadToWorkspace={handleLoadToWorkspace}
         onDeleteMenu={handleDeleteMenu}
         deleting={deleting}
+      />
+
+      <ItemPoolEditSheet
+        item={editingPoolItem}
+        onClose={() => setEditingPoolItem(null)}
+        onSave={handleUpdatePoolItem}
+        onDelete={handleDeletePoolItem}
       />
     </div>
   )

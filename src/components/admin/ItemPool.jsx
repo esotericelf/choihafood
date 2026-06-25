@@ -1,19 +1,46 @@
 import { Draggable, Droppable } from '@hello-pangea/dnd'
-import { GripVertical, Plus } from 'lucide-react'
+import { useCallback } from 'react'
+import { GripVertical, MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react'
+import { useLongPress } from '../../hooks/useLongPress'
 import { formatPrice, categoryLabel, t } from '../../i18n/zh'
 
-function PoolItemRow({ item, index, dragEnabled, onAddToMenu, dragProps = {} }) {
+function PoolItemRow({
+  item,
+  dragEnabled,
+  isMobile,
+  onAddToMenu,
+  onEditItem,
+  onDeleteItem,
+  dragProps = {},
+}) {
   const { innerRef, draggableProps, dragHandleProps, isDragging } = dragProps
+
+  const handleLongPress = useCallback(() => onEditItem(item), [onEditItem, item])
+  const longPressHandlers = useLongPress(handleLongPress, { delay: 500 })
+
+  function stopPropagation(e) {
+    e.stopPropagation()
+  }
+
+  const rowHandlers = isMobile
+    ? {
+        onTouchStart: longPressHandlers.onTouchStart,
+        onTouchEnd: longPressHandlers.onTouchEnd,
+        onTouchMove: longPressHandlers.onTouchMove,
+        onTouchCancel: longPressHandlers.onTouchCancel,
+      }
+    : {}
 
   return (
     <div
       ref={innerRef}
       {...draggableProps}
-      className={`flex items-center gap-2 rounded-lg border bg-white px-3 py-2.5 shadow-sm transition ${
+      {...rowHandlers}
+      className={`group flex items-center gap-2 rounded-lg border bg-white px-3 py-2.5 shadow-sm transition select-none ${
         isDragging
           ? 'border-brand-400 shadow-md ring-2 ring-brand-200'
           : 'border-stone-200'
-      }`}
+      } ${isMobile ? 'active:bg-stone-50' : ''}`}
     >
       {dragEnabled && (
         <div {...dragHandleProps}>
@@ -27,19 +54,64 @@ function PoolItemRow({ item, index, dragEnabled, onAddToMenu, dragProps = {} }) 
       <span className="shrink-0 text-sm font-semibold text-brand-600">
         {formatPrice(item.price)}
       </span>
+
       <button
         type="button"
-        onClick={() => onAddToMenu(item)}
+        onClick={(e) => {
+          stopPropagation(e)
+          onAddToMenu(item)
+        }}
+        onTouchStart={stopPropagation}
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-100 text-green-700 hover:bg-green-200 active:scale-95"
         aria-label={`${t.addToMenu} ${item.name}`}
       >
         <Plus className="h-4 w-4" />
       </button>
+
+      {isMobile ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            stopPropagation(e)
+            onEditItem(item)
+          }}
+          onTouchStart={stopPropagation}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-600 active:scale-95"
+          aria-label={`${t.edit} ${item.name}`}
+        >
+          <MoreVertical className="h-4 w-4" />
+        </button>
+      ) : (
+        <div className="flex shrink-0 items-center gap-0.5 opacity-100 md:opacity-0 md:transition-opacity md:group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={(e) => {
+              stopPropagation(e)
+              onEditItem(item)
+            }}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-400 hover:bg-brand-50 hover:text-brand-600"
+            aria-label={`${t.edit} ${item.name}`}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              stopPropagation(e)
+              onDeleteItem(item)
+            }}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-400 hover:bg-red-50 hover:text-red-500"
+            aria-label={`${t.deleteFromPool} ${item.name}`}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
     </div>
   )
 }
 
-function PoolList({ items, dragEnabled, onAddToMenu }) {
+function PoolList({ items, dragEnabled, isMobile, onAddToMenu, onEditItem, onDeleteItem }) {
   if (items.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-stone-400">
@@ -54,7 +126,10 @@ function PoolList({ items, dragEnabled, onAddToMenu }) {
         key={item.id}
         item={item}
         dragEnabled={false}
+        isMobile={isMobile}
         onAddToMenu={onAddToMenu}
+        onEditItem={onEditItem}
+        onDeleteItem={onDeleteItem}
       />
     ))
   }
@@ -64,9 +139,11 @@ function PoolList({ items, dragEnabled, onAddToMenu }) {
       {(dragProvided, dragSnapshot) => (
         <PoolItemRow
           item={item}
-          index={index}
           dragEnabled
+          isMobile={isMobile}
           onAddToMenu={onAddToMenu}
+          onEditItem={onEditItem}
+          onDeleteItem={onDeleteItem}
           dragProps={{
             innerRef: dragProvided.innerRef,
             draggableProps: dragProvided.draggableProps,
@@ -79,14 +156,34 @@ function PoolList({ items, dragEnabled, onAddToMenu }) {
   ))
 }
 
-export default function ItemPool({ items, dragEnabled = true, onAddToMenu }) {
-  const hint = dragEnabled ? t.dragToMenu : t.tapToAddHint
+export default function ItemPool({
+  items,
+  dragEnabled = true,
+  isMobile = false,
+  onAddToMenu,
+  onEditItem,
+  onDeleteItem,
+}) {
+  const hint = dragEnabled
+    ? t.dragToMenu
+    : `${t.tapToAddHint} · ${t.longPressToEdit}`
+
+  const list = (
+    <PoolList
+      items={items}
+      dragEnabled={dragEnabled}
+      isMobile={isMobile}
+      onAddToMenu={onAddToMenu}
+      onEditItem={onEditItem}
+      onDeleteItem={onDeleteItem}
+    />
+  )
 
   if (!dragEnabled) {
     return (
       <div className="min-h-[200px] space-y-2 rounded-xl border-2 border-dashed border-stone-200 bg-white p-3">
         <p className="mb-2 text-xs font-medium text-stone-400">{hint}</p>
-        <PoolList items={items} dragEnabled={false} onAddToMenu={onAddToMenu} />
+        {list}
       </div>
     )
   }
@@ -104,7 +201,7 @@ export default function ItemPool({ items, dragEnabled = true, onAddToMenu }) {
           }`}
         >
           <p className="mb-2 text-xs font-medium text-stone-400">{hint}</p>
-          <PoolList items={items} dragEnabled onAddToMenu={onAddToMenu} />
+          {list}
           {provided.placeholder}
         </div>
       )}

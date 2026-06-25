@@ -5,6 +5,7 @@ import {
   getDocs,
   getDoc,
   setDoc,
+  updateDoc,
   deleteDoc,
   query,
   where,
@@ -32,6 +33,20 @@ export async function addItemToPool({ name, price, category, description = '' })
     description: description.trim(),
   })
   return { id: docRef.id, name: name.trim(), price: Number(price), category: category.trim(), description: description.trim() }
+}
+
+export async function updateItemInPool(id, { name, price }) {
+  const docRef = doc(db, ITEM_POOL, id)
+  await updateDoc(docRef, {
+    name: name.trim(),
+    price: Number(price),
+  })
+  return { id, name: name.trim(), price: Number(price) }
+}
+
+export async function deleteItemFromPool(id) {
+  const docRef = doc(db, ITEM_POOL, id)
+  await deleteDoc(docRef)
 }
 
 export async function fetchPublishedMenu(dateId) {

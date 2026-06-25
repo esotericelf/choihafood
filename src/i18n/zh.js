@@ -42,6 +42,17 @@ export const t = {
   tapToAddHint: '点击 + 将菜品加入今日菜单',
   addToMenu: '加入菜单',
   noItemsInPool: '菜品库为空，请在上方添加。',
+  editItem: '编辑菜品',
+  edit: '编辑',
+  save: '保存',
+  saving: '保存中...',
+  cancel: '取消',
+  deleteFromPool: '从菜品库删除',
+  deleting: '删除中...',
+  confirmDeleteFromPool: '确定要永久删除此菜品吗？此操作无法撤销。',
+  updateItemFailed: '更新失败，请重试。',
+  deleteItemFailed: '删除失败，请重试。',
+  longPressToEdit: '长按菜品可编辑',
 
   // Mobile tabs
   tabManagePool: '🍲 管理菜品库',
