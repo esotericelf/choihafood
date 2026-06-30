@@ -8,7 +8,7 @@ A single-page React app for managing and publishing daily tuck shop menus, built
 - **Drag & Drop:** `@hello-pangea/dnd`
 - **Backend:** Firebase (Firestore + Auth)
 - **Deploy:** Netlify
-- **Analytics:** Google Analytics (G-7N54JBN6X9)
+- **Analytics:** Google Analytics (G-C5M1Q15TVB)
 - **SEO:** robots.txt, sitemap.xml
 
 ## Getting Started
